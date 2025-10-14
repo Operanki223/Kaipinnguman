@@ -1,40 +1,65 @@
 using UnityEngine;
 using TMPro;
 using System.Collections.Generic;
+using System.Collections;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager instance;
+    [Header("要素順に敵が出現"), SerializeField] public List<EnemyFlow> EnemiesFlow = new List<EnemyFlow>();
+    [Header("敵を入れる"), SerializeField] List<EnemyList> enemyList = new List<EnemyList>();
+    [SerializeField] Transform enemtParent;
     [SerializeField] GameObject player;
+    [SerializeField] float moveSpeed = 1.0f;
     [SerializeField] TextMeshProUGUI[] words;
-    [SerializeField] List<GameObject> wordsObj;
-    TextMeshProUGUI[] subwords;
+    [SerializeField] public List<GameObject> wordsObj;
     [SerializeField] string[] wordArray;
-    public TMP_InputField inputField;
+    [SerializeField] TMP_InputField inputField;
+    [SerializeField] GameObject backGround;
+    public Transform backGroundParent;
+    public float backGround_spownposX = 0.0f;
+    public float backGround_spownposY = 0.0f;
+    public float backGround_spownTime = 1.0f;
+    public float BackGround_destroyTime = 10f;
 
     int[,] isPlayer3x3 = new int[3, 3];
     Vector2[,] playerPos3x3 = new Vector2[3, 3];
     string[,] wordPos3x3 = new string[3, 3];
     string inputValue;
     bool playmove = false;
+    bool game_play = true;
+    Vector3 secondPos;
+
+    public Vector3 GetSecondPos()
+    {
+        return secondPos;
+    }
 
     void Start()
     {
+        instance = this;
         Reset();
     }
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) && game_play)
         {
             if (inputField != null && inputField.isFocused)
             {
                 OnEnterInputField();
             }
         }
+        if (game_play)
+        {
+            game_play = false;
+            StartCoroutine(PlayGame());     // ← PlayGameを開始
+        }
     }
 
     void Reset()
     {
+        game_play = true;
         SetArrys3x3(3, 3);
         SetPlayerPos3x3();
         RandomSetWordArray(); // 初回だけ設定
@@ -91,12 +116,32 @@ public class GameManager : MonoBehaviour
             {
                 if (wordPos3x3[row, col] == inputValue)
                 {
-                    player.transform.position = playerPos3x3[row, col];
+                    Vector2 targetPos = playerPos3x3[row, col];
+                    StopAllCoroutines(); // 前回の移動を止める
+                    StartCoroutine(MovePlayerTo(targetPos));
                     playmove = true;
+                    return;
                 }
             }
         }
     }
+
+    // プレイヤーをなめらかに目的地へ移動
+    IEnumerator MovePlayerTo(Vector2 targetPos)
+    {
+        Vector2 startPos = player.transform.position;
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime * moveSpeed;
+            player.transform.position = Vector2.Lerp(startPos, targetPos, t);
+            yield return null;
+        }
+
+        player.transform.position = targetPos; // 最後に正確な位置へ
+    }
+
 
     void RandomSetWordArray()
     {
@@ -124,5 +169,75 @@ public class GameManager : MonoBehaviour
                 wordPos3x3[row, col] = wordArray[rnd];
             }
         }
+    }
+
+    public IEnumerator PlayGame()
+    {
+        Debug.Log("PlayGame開始");
+
+        for (int i = 0; i < EnemiesFlow.Count; i++)
+        {
+            EnemyFlow nowEnemy = EnemiesFlow[i];
+            EnemyFlow nextEnemy;
+            if (i + 1 < EnemiesFlow.Count)
+            {
+                // 次の敵情報が存在する場合 
+                nextEnemy = EnemiesFlow[i + 1];
+            }
+            else
+            {
+                // 最後の要素の場合（次がない） 
+                nextEnemy = null;
+            }
+
+            nowEnemy.SetPos3x3(nowEnemy.GetEnemyPos3X3());
+
+            foreach (var enemy in enemyList)
+            {
+                if (enemy.GetEnemyName().Equals(nowEnemy.GetEnemyName()))
+                {
+                    // 敵オブジェクト生成
+                    GameObject newEnemy = Instantiate(enemy.GetEnemyObj(), nowEnemy.GetPos(), Quaternion.identity, enemtParent);
+                    Debug.Log($"{enemy.GetEnemyName()}を召喚 (ID: {i})");
+
+                    // SAMPLEスクリプトを取得して初期化
+                    SAMPLE sample = newEnemy.GetComponent<SAMPLE>();
+                    if (sample != null)
+                    {
+                        sample.Init(i);
+
+                        // ★次の敵が存在して、SpawnTime が異なる場合のみ移動完了を待つ
+                        if (nextEnemy == null || nowEnemy.GetSpawnTime() != nextEnemy.GetSpawnTime())
+                        {
+                            yield return StartCoroutine(sample.MoveAndWait());
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"{enemy.GetEnemyName()} に SAMPLE スクリプトが付いていません");
+                    }
+                }
+            }
+        }
+
+        Debug.Log("ゲーム終了");
+    }
+
+
+    public float WaiteTiem(Vector2 startPos, Vector2 targetPos, float speed)
+    {
+        if (speed <= 0f)
+        {
+            Debug.LogWarning("速度が0以下です。移動時間を計算できません。");
+            return 0f;
+        }
+
+        // 2点間の距離を計算
+        float distance = Vector2.Distance(startPos, targetPos);
+
+        // 移動にかかる時間 = 距離 ÷ 速度
+        float waiteTime = distance / speed;
+        Debug.Log($"{startPos}{targetPos}{distance}{waiteTime}");
+        return waiteTime;
     }
 }
