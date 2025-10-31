@@ -152,4 +152,9 @@ public class StageSelectManager : MonoBehaviour
         }
         panelMove = false;
     }
+
+    public void Stage1()
+    {
+        ScenesManager.instance.SceneMove(3);
+    }
 }

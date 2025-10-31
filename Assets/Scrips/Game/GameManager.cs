@@ -2,10 +2,13 @@ using UnityEngine;
 using TMPro;
 using System.Collections.Generic;
 using System.Collections;
+using DG.Tweening;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
+    [SerializeField] GameObject titleText;
+
     [Header("要素順に敵が出現"), SerializeField] public List<EnemyFlow> EnemiesFlow = new List<EnemyFlow>();
     [Header("敵を入れる"), SerializeField] List<EnemyList> enemyList = new List<EnemyList>();
     [SerializeField] Transform enemtParent;
@@ -22,7 +25,7 @@ public class GameManager : MonoBehaviour
     public float backGround_spownTime = 1.0f;
     public float BackGround_destroyTime = 10f;
 
-    int[,] isPlayer3x3 = new int[3, 3];
+    int[,] isPlayer3x3 = new int[3, 3];//プレーヤーの位置の記録
     Vector2[,] playerPos3x3 = new Vector2[3, 3];
     string[,] wordPos3x3 = new string[3, 3];
     string inputValue;
@@ -37,6 +40,7 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        titleText.SetActive(true);
         instance = this;
         Reset();
     }
@@ -68,8 +72,12 @@ public class GameManager : MonoBehaviour
     void SetArrys3x3(int x = 3, int y = 3, string width = "全部")
     {
         for (int n = 0; n < 3; n++)
+        {
             for (int m = 0; m < 3; m++)
+            {
                 isPlayer3x3[m, n] = 2;
+            }
+        }
 
         if (x == 3 && y == 3)
             isPlayer3x3[1, 1] = 1;
@@ -79,6 +87,12 @@ public class GameManager : MonoBehaviour
             isPlayer3x3[1, 0] = 1;
     }
 
+
+    /// <summary>
+    /// 座標を入れる
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
     void SetPlayerPos3x3(int x = 0, int y = 0)
     {
         int count = 0;
@@ -110,6 +124,8 @@ public class GameManager : MonoBehaviour
 
     void PlayerMove(float x = 0, float y = 0)
     {
+        int count = 0;
+
         for (int row = 0; row < 3; row++)
         {
             for (int col = 0; col < 3; col++)
@@ -117,14 +133,31 @@ public class GameManager : MonoBehaviour
                 if (wordPos3x3[row, col] == inputValue)
                 {
                     Vector2 targetPos = playerPos3x3[row, col];
+                    WordsSetActive();
+
+                    // 移動先の文字を非表示にする
+                    words[count].gameObject.SetActive(false);
+
                     StopAllCoroutines(); // 前回の移動を止める
                     StartCoroutine(MovePlayerTo(targetPos));
                     playmove = true;
                     return;
                 }
+                count++;
             }
         }
     }
+
+    void WordsSetActive(bool b = true, string width = null)
+    {
+        foreach (var word in words)
+        {
+            word.gameObject.SetActive(b);
+        }
+
+        if (width == "3x3") words[4].gameObject.SetActive(false);
+    }
+
 
     // プレイヤーをなめらかに目的地へ移動
     IEnumerator MovePlayerTo(Vector2 targetPos)
@@ -173,7 +206,9 @@ public class GameManager : MonoBehaviour
 
     public IEnumerator PlayGame()
     {
-        Debug.Log("PlayGame開始");
+        // タイトルアニメーションが終わるまで待つ
+        yield return StartCoroutine(TitleAnimation());
+        WordsSetActive(true, "3x3");
 
         for (int i = 0; i < EnemiesFlow.Count; i++)
         {
@@ -240,4 +275,51 @@ public class GameManager : MonoBehaviour
         Debug.Log($"{startPos}{targetPos}{distance}{waiteTime}");
         return waiteTime;
     }
+
+    /// <summary>
+    /// ゲーム開始時のアニメーション
+    /// </summary>
+    IEnumerator TitleAnimation()
+    {
+        WordsSetActive(false);
+
+        RectTransform rect = titleText.GetComponent<RectTransform>();
+
+        // 画面幅を取得（CanvasがScreen Space Overlayの場合）
+        float screenWidth = Screen.width;
+
+        // スタート位置（画面右外）と終了位置（画面左外）
+        Vector2 startPos = new Vector2(screenWidth + 400f, rect.anchoredPosition.y);
+        Vector2 centerPos = new Vector2(0f, rect.anchoredPosition.y);
+        Vector2 endPos = new Vector2(-screenWidth - 400f, rect.anchoredPosition.y);
+
+        // 初期位置を右外に設定
+        rect.anchoredPosition = startPos;
+        rect.localScale = Vector3.one * 0.8f;
+
+        // 透明度用CanvasGroupを設定（なければ追加）
+        CanvasGroup cg = titleText.GetComponent<CanvasGroup>();
+        if (cg == null) cg = titleText.AddComponent<CanvasGroup>();
+        cg.alpha = 0f;
+
+        // DOTweenシーケンス作成
+        Sequence seq = DOTween.Sequence();
+
+        // ✅ 1. フェードインしながら右 → 中央へ移動
+        seq.Append(cg.DOFade(1f, 0.8f)); // フェードイン
+        seq.Join(rect.DOAnchorPosX(centerPos.x, 2.5f).SetEase(Ease.OutQuad));
+
+        // ✅ 2. 中央で1秒停止
+        seq.AppendInterval(1f);
+
+        // ✅ 3. 左へ移動しながらフェードアウト
+        seq.Append(rect.DOAnchorPosX(endPos.x, 2.5f).SetEase(Ease.InQuad));
+        seq.Join(cg.DOFade(0f, 1.0f));
+
+        // ✅ 4. 完了待機
+        yield return seq.WaitForCompletion();
+
+        Debug.Log("タイトルアニメーション完了！");
+    }
+
 }

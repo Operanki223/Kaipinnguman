@@ -38,23 +38,62 @@ public class SAMPLE : MonoBehaviour
         moveSpeed = enemyFlow.GetSpeed();
         startPos = transform.position;
 
-        if (enemyAction == EnemyAction.MOVE)
+        // 行動ごとの設定
+        switch (enemyAction)
         {
-            switch (enemyPos3X3)
-            {
-                case EnemyPos3x3.UP1:
-                    finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM5);
-                    break;
-                case EnemyPos3x3.UP2:
-                    finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM4);
-                    break;
-                case EnemyPos3x3.UP3:
-                    finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM3);
-                    break;
-                default:
-                    finishPos = transform.position;
-                    break;
-            }
+            case EnemyAction.MOVE:
+                // 移動アクションの場合、行先を設定
+                switch (enemyPos3X3)
+                {
+                    // 🔽 上段 → 下段
+                    case EnemyPos3x3.UP1: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM5); break;
+                    case EnemyPos3x3.UP2: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM4); break;
+                    case EnemyPos3x3.UP3: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM3); break;
+                    case EnemyPos3x3.UP4: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM2); break;
+                    case EnemyPos3x3.UP5: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.BOTTOM1); break;
+
+                    // 🔼 下段 → 上段
+                    case EnemyPos3x3.BOTTOM1: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.UP5); break;
+                    case EnemyPos3x3.BOTTOM2: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.UP4); break;
+                    case EnemyPos3x3.BOTTOM3: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.UP3); break;
+                    case EnemyPos3x3.BOTTOM4: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.UP2); break;
+                    case EnemyPos3x3.BOTTOM5: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.UP1); break;
+
+                    // ➡️ 左 → 右
+                    case EnemyPos3x3.LEFT1: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.RIGHT5); break;
+                    case EnemyPos3x3.LEFT2: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.RIGHT4); break;
+                    case EnemyPos3x3.LEFT3: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.RIGHT3); break;
+                    case EnemyPos3x3.LEFT4: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.RIGHT2); break;
+                    case EnemyPos3x3.LEFT5: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.RIGHT1); break;
+
+                    // ⬅️ 右 → 左
+                    case EnemyPos3x3.RIGHT1: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.LEFT5); break;
+                    case EnemyPos3x3.RIGHT2: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.LEFT4); break;
+                    case EnemyPos3x3.RIGHT3: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.LEFT3); break;
+                    case EnemyPos3x3.RIGHT4: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.LEFT2); break;
+                    case EnemyPos3x3.RIGHT5: finishPos = enemyFlow.SetPos3x3(EnemyPos3x3.LEFT1); break;
+
+                    default:
+                        finishPos = transform.position; // 安全策
+                        break;
+                }
+                break;
+
+            case EnemyAction.STOP:
+                // 停止アクション → 位置固定
+                finishPos = startPos;
+                break;
+
+            case EnemyAction.BEAM:
+                // 攻撃アクション → 位置固定 or エフェクト再生準備など
+                finishPos = startPos;
+                // ここでビーム演出準備可能
+                break;
+
+            case EnemyAction.EXPLOTION:
+                // 爆発アクション → 位置固定
+                finishPos = startPos;
+                break;
         }
 
         isInitialized = true; // ← 初期化完了！
